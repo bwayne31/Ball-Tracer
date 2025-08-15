@@ -1,420 +1,90 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Golf Ball Tracer (Manual)</title>
+  <title>Golf Ball Tracer - Manual</title>
   <style>
-    :root{
-      --bg:#0b1020;--panel:#121831;--muted:#6b7a99;--accent:#56c2ff;--accent2:#7df9b8;--danger:#ff6b6b;--ok:#9cff6b;
-    }
-    *{box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
-    body{margin:0;background:linear-gradient(180deg,#0b1020,#0b1020 60%,#0b1228);color:#e6ecff}
-    header{padding:14px 16px;border-bottom:1px solid #1e274d;background:#0b1228;position:sticky;top:0;z-index:10}
-    header h1{margin:0;font-size:18px;letter-spacing:.4px}
-
-    .wrap{max-width:1100px;margin:18px auto;padding:0 16px}
-    .grid{display:grid;grid-template-columns:1fr;gap:14px}
-    @media (min-width:980px){.grid{grid-template-columns:1.3fr .7fr}}
-
-    .card{background:var(--panel);border:1px solid #1c2244;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.26);overflow:hidden}
-    .card h2{font-size:16px;margin:0;padding:12px 14px;border-bottom:1px solid #1c2244;background:rgba(255,255,255,.02)}
-    .card .inner{padding:12px}
-
-    .player{position:relative;background:black;aspect-ratio:16/9;border-radius:12px;overflow:hidden}
-    video,canvas{position:absolute;inset:0;width:100%;height:100%;}
-    canvas{pointer-events:none}
-
-    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .toolbar label{font-size:12px;color:var(--muted)}
-    .toolbar input[type="range"]{width:160px}
-    .toolbar input[type="number"]{width:84px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-    .btn{appearance:none;border:1px solid #24305f;background:#172049;color:#eaf2ff;padding:9px 12px;border-radius:12px;cursor:pointer;font-weight:600}
-    .btn:hover{filter:brightness(1.08)}
-    .btn[disabled]{opacity:.5;cursor:not-allowed}
-    .btn.primary{background:linear-gradient(180deg,#2b5fff,#1946ff);border-color:#2b5fff}
-    .btn.danger{background:linear-gradient(180deg,#ff6b6b,#ff3b3b);border-color:#ff6b6b}
-    .pill{display:inline-flex;gap:8px;align-items:center;background:#0e1636;border:1px solid #212b5a;padding:8px 10px;border-radius:999px}
-    .dot{width:10px;height:10px;border-radius:999px;background:#9aa7cc;border:2px solid rgba(255,255,255,.25)}
-    .dot[data-k='start']{background:#7df9b8}
-    .dot[data-k='ctrl']{background:#ffd56b}
-    .dot[data-k='end']{background:#56c2ff}
-    small.hint{color:#9fb0d4;display:block;margin-top:4px}
-    .list{font-size:13px;color:#b8c7ff;line-height:1.5}
-    .list b{color:#e6eeff}
-    .inline{display:inline-flex;gap:6px;align-items:center}
-    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;background:#0d1330;border:1px solid #27306b;color:#e6ecff;padding:2px 6px;border-radius:6px}
+    body { font-family: Arial; text-align: center; background: #222; color: white; }
+    canvas { border: 1px solid white; cursor: crosshair; }
+    #controls { margin: 10px; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>⛳️ Golf Ball Tracer — Manual</h1>
-  </header>
-  <div class="wrap">
-    <div class="grid">
-      <div class="card">
-        <h2>1) Load a video and mark points</h2>
-        <div class="inner">
-          <div class="row">
-            <input id="file" type="file" accept="video/*" class="btn" />
-            <button id="recordBtn" class="btn" title="Record using your camera (may be unsupported on some browsers)">🎥 Record</button>
-            <button id="resetBtn" class="btn danger" disabled>Reset points</button>
-          </div>
-
-          <div class="player" id="stage">
-            <video id="vid" playsinline></video>
-            <canvas id="overlay"></canvas>
-          </div>
-
-          <div class="row toolbar">
-            <div class="pill"><span class="dot" data-k="start"></span><label>Start</label></div>
-            <div class="pill"><span class="dot" data-k="ctrl"></span><label>Apex/Control</label></div>
-            <div class="pill"><span class="dot" data-k="end"></span><label>End</label></div>
-            <button id="modePoint" class="btn">Tap to set points</button>
-            <button id="modeDrag" class="btn">Drag to adjust</button>
-            <span class="inline"><label>Tracer width</label><input id="lineW" type="range" min="2" max="12" value="6"></span>
-            <span class="inline"><label>Color</label><input id="color" type="color" value="#56c2ff"></span>
-          </div>
-
-          <div class="row toolbar">
-            <span class="inline"><label>Launch time (sec)</label><input id="tStart" type="number" min="0" step="0.01" value="0"></span>
-            <span class="inline"><label>Flight duration (sec)</label><input id="tDur" type="number" min="0.1" step="0.01" value="2.5"></span>
-            <span class="inline"><label>Animate tracer</label><input id="animateTracer" type="checkbox" checked></span>
-          </div>
-          <small class="hint">Tip: Tap the video to set <b>Start → Apex → End</b>. Use “Drag to adjust” to fine‑tune the points.
-            For best results, crop/record so the whole ball flight fits in frame.</small>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>2) Preview & Export</h2>
-        <div class="inner">
-          <div class="row">
-            <button id="playBtn" class="btn primary" disabled>▶️ Preview with tracer</button>
-            <button id="exportBtn" class="btn primary" disabled>💾 Export video with tracer</button>
-          </div>
-          <div class="list">
-            <p><b>How export works:</b> the app replays your video on a hidden canvas, draws the tracer overlay each frame, and records the canvas to a new MP4/WebM video using <i>MediaRecorder</i> (supported in modern iOS/Android browsers). If your iPhone saves a WebM, you can still share/play it in most apps; on some iOS versions it auto-converts to MP4.</p>
-            <p><b>Notes for iPhone:</b> If you want it to feel like an app, open in Safari and tap <span class="kbd">Share</span> → <span class="kbd">Add to Home Screen</span>. Works offline in that mode too (basic version — full PWA service worker can be added later).</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <h2>Quick Help</h2>
-      <div class="inner list">
-        <ol>
-          <li>Tap <b>Load video</b> or <b>Record</b>.</li>
-          <li>Tap the video: set <b>Start</b> (ball strike), <b>Apex/Control</b> (rough top of arc), then <b>End</b> (landing or frame where ball exits).</li>
-          <li>Adjust <b>Launch time</b> and <b>Flight duration</b> so the tracer animation lines up.</li>
-          <li>Hit <b>Preview</b>. If it looks right, choose <b>Export</b> to save a copy with the tracer.</li>
-        </ol>
-      </div>
-    </div>
+  <h2>Golf Ball Tracer</h2>
+  <input type="file" id="videoUpload" accept="video/*"><br><br>
+  <div id="controls">
+    <button onclick="prevFrame()">⏮ Prev Frame</button>
+    <button onclick="nextFrame()">⏭ Next Frame</button>
+    <button onclick="clearPoints()">🗑 Clear Points</button>
   </div>
+  <canvas id="canvas"></canvas>
 
   <script>
-    const el = id => document.getElementById(id);
-    const file = el('file');
-    const recordBtn = el('recordBtn');
-    const resetBtn = el('resetBtn');
-    const vid = el('vid');
-    const overlay = el('overlay');
-    const stage = el('stage');
-    const playBtn = el('playBtn');
-    const exportBtn = el('exportBtn');
-    const tStart = el('tStart');
-    const tDur = el('tDur');
-    const lineW = el('lineW');
-    const color = el('color');
-    const animateTracer = el('animateTracer');
-    const modePoint = el('modePoint');
-    const modeDrag = el('modeDrag');
+    const upload = document.getElementById('videoUpload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    let points = { start:null, ctrl:null, end:null };
-    let dragKey = null; // 'start' | 'ctrl' | 'end'
-    let inputMode = 'point'; // 'point' or 'drag'
+    let video = document.createElement('video');
+    video.muted = true;
+    video.controls = false;
+    video.style.display = 'none';
+    document.body.appendChild(video);
 
-    function resizeCanvas(){
-      const rect = stage.getBoundingClientRect();
-      overlay.width = rect.width * devicePixelRatio;
-      overlay.height = rect.height * devicePixelRatio;
-      drawGuide();
-    }
-    window.addEventListener('resize', resizeCanvas);
+    let points = [];
 
-    // Load video
-    file.addEventListener('change', async (e)=>{
-      const f = e.target.files?.[0];
-      if(!f) return;
-      const url = URL.createObjectURL(f);
-      await loadVideo(url);
+    upload.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        video.addEventListener('loadeddata', () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          drawFrame();
+        });
+      }
     });
 
-    recordBtn.addEventListener('click', async ()=>{
-      try{
-        const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-        const rec = new MediaRecorder(stream);
-        const chunks=[];
-        rec.ondataavailable = e=>chunks.push(e.data);
-        rec.onstop = ()=>{
-          const blob = new Blob(chunks, {type: chunks[0]?.type || 'video/webm'});
-          const url = URL.createObjectURL(blob);
-          loadVideo(url);
-          stream.getTracks().forEach(t=>t.stop());
-        };
-        // Quick inline recorder UI
-        const recWin = window.open('', '', 'width=360,height=640');
-        recWin.document.body.innerHTML = '<style>body{margin:0;background:#000;color:#fff;font-family:sans-serif}</style>'+
-          '<video id="rv" autoplay playsinline style="width:100%;height:calc(100% - 60px);object-fit:cover"></video>'+
-          '<div style="display:flex;gap:8px;padding:8px;justify-content:center;background:#111">'+
-          '<button id="start">Start</button><button id="stop" disabled>Stop</button></div>';
-        recWin.document.getElementById('rv').srcObject = stream;
-        recWin.document.getElementById('start').onclick = ()=>{ rec.start(); recWin.document.getElementById('start').disabled=true; recWin.document.getElementById('stop').disabled=false; };
-        recWin.document.getElementById('stop').onclick = ()=>{ rec.stop(); recWin.close(); };
-      }catch(err){ alert('Camera recording not available: '+err); }
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      points.push({x, y});
+      drawFrame();
     });
 
-    async function loadVideo(url){
-      return new Promise(res=>{
-        vid.src = url;
-        vid.onloadedmetadata = ()=>{
-          vid.pause();
-          vid.currentTime = 0;
-          enableUI();
-          // Fit video element to stage aspect
-          const v = {w: vid.videoWidth, h: vid.videoHeight};
-          const s = stage.getBoundingClientRect();
-          const stageRatio = s.width/s.height;
-          const videoRatio = v.w/v.h;
-          if(videoRatio>stageRatio){
-            vid.style.width = '100%'; vid.style.height='auto';
-          }else{ vid.style.width='auto'; vid.style.height='100%'; }
-          resizeCanvas();
-          res();
-        };
-      })
-    }
-
-    function enableUI(){
-      resetBtn.disabled=false; playBtn.disabled=false; exportBtn.disabled=false;
-    }
-
-    // Coordinate transforms between CSS pixels and canvas pixels
-    function cssToCanvas(x,y){
-      const r = overlay.getBoundingClientRect();
-      const sx = overlay.width / r.width;
-      const sy = overlay.height / r.height;
-      return {x:x*r.width/r.width*sx + 0*(sy-sx), y:y*r.height/r.height*sy};
-    }
-    function canvasToCss(x,y){
-      const r = overlay.getBoundingClientRect();
-      const sx = r.width / overlay.width;
-      const sy = r.height / overlay.height;
-      return {x: x*sx, y: y*sy};
-    }
-
-    // Interaction
-    modePoint.onclick = ()=>{inputMode='point';};
-    modeDrag.onclick  = ()=>{inputMode='drag';};
-
-    stage.addEventListener('pointerdown', (e)=>{
-      const rect = overlay.getBoundingClientRect();
-      const cx = (e.clientX - rect.left) * (overlay.width/rect.width);
-      const cy = (e.clientY - rect.top)  * (overlay.height/rect.height);
-
-      if(inputMode==='point'){
-        if(!points.start) points.start = {x:cx,y:cy};
-        else if(!points.ctrl) points.ctrl = {x:cx,y:cy};
-        else if(!points.end) points.end = {x:cx,y:cy};
-        else { // overwrite closest
-          const k = closestKey(cx,cy);
-          points[k] = {x:cx,y:cy};
+    function drawFrame() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (points.length > 1) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
         }
-        drawGuide();
-      }else{ // drag mode
-        dragKey = closestKey(cx,cy);
-        points[dragKey] && (points[dragKey]._dragging=true);
+        ctx.stroke();
       }
-    });
-    stage.addEventListener('pointermove', (e)=>{
-      if(!dragKey) return;
-      if(!points[dragKey]) return;
-      const rect = overlay.getBoundingClientRect();
-      const cx = (e.clientX - rect.left) * (overlay.width/rect.width);
-      const cy = (e.clientY - rect.top)  * (overlay.height/rect.height);
-      points[dragKey].x = cx; points[dragKey].y = cy; drawGuide();
-    });
-    stage.addEventListener('pointerup', ()=>{ if(dragKey && points[dragKey]) points[dragKey]._dragging=false; dragKey=null; });
-
-    resetBtn.addEventListener('click', ()=>{ points = {start:null,ctrl:null,end:null}; drawGuide(); });
-
-    function closestKey(x,y){
-      let best='start',bd=Infinity; for(const k of ['start','ctrl','end']){
-        const p=points[k]; if(!p) continue; const d=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y); if(d<bd){bd=d;best=k}
-      } return best;
-    }
-
-    function drawGuide(){
-      const ctx = overlay.getContext('2d');
-      ctx.clearRect(0,0,overlay.width,overlay.height);
-      // points
-      const r = 10*devicePixelRatio;
-      const lw = parseInt(lineW.value,10);
-      if(points.start||points.ctrl||points.end){
-        // draw curve preview if we have at least start+end
-        if(points.start && points.end){
-          ctx.save();
-          ctx.lineWidth = lw*1.2; ctx.strokeStyle = hexToRGBA(color.value, .9); ctx.lineCap='round';
-          ctx.beginPath();
-          const c = points.ctrl || midpoint(points.start, points.end, -0.35);
-          ctx.moveTo(points.start.x, points.start.y);
-          ctx.quadraticCurveTo(c.x, c.y, points.end.x, points.end.y);
-          ctx.stroke();
-          ctx.restore();
-        }
-        for(const [k,p] of Object.entries(points)){
-          if(!p) continue;
-          ctx.beginPath(); ctx.fillStyle = pointColor(k); ctx.strokeStyle = 'rgba(255,255,255,.6)';
-          ctx.lineWidth=2*devicePixelRatio; ctx.arc(p.x,p.y,r,0,Math.PI*2);
-          ctx.fill(); ctx.stroke();
-        }
+      for (let p of points) {
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
-    function pointColor(k){ return k==='start'? '#7df9b8' : k==='end'? '#56c2ff' : '#ffd56b'; }
-    function hexToRGBA(hex,a){
-      const v = hex.replace('#','');
-      const r = parseInt(v.substring(0,2),16);
-      const g = parseInt(v.substring(2,4),16);
-      const b = parseInt(v.substring(4,6),16);
-      return `rgba(${r},${g},${b},${a})`;
+    function prevFrame() {
+      video.currentTime = Math.max(0, video.currentTime - 0.033);
+      drawFrame();
     }
-    function midpoint(a,b,factor=0.5){
-      return { x: a.x + (b.x-a.x)*factor, y: a.y + (b.y-a.y)*factor };
+    function nextFrame() {
+      video.currentTime = Math.min(video.duration, video.currentTime + 0.033);
+      drawFrame();
     }
-
-    // Preview: draw tracer on top while the original video plays
-    playBtn.addEventListener('click', async ()=>{
-      if(!vid.src || !points.start || !points.end){ alert('Set Start, Apex, and End points first.'); return; }
-      vid.pause();
-      await vid.play();
-      const startAt = clamp(parseFloat(tStart.value)||0, 0, vid.duration-0.01);
-      const dur = Math.max(0.05, parseFloat(tDur.value)||2.5);
-      const endAt = Math.min(startAt+dur, vid.duration);
-
-      const ctx = overlay.getContext('2d');
-      const c = points.ctrl || midpoint(points.start, points.end, -0.35);
-      const lw = parseInt(lineW.value,10);
-      const col = color.value;
-
-      let rafId;
-      function tick(){
-        ctx.clearRect(0,0,overlay.width,overlay.height);
-        const t = vid.currentTime;
-        const prog = t<startAt? 0 : t>endAt? 1 : (t-startAt)/(endAt-startAt);
-        drawTracer(ctx, points.start, c, points.end, prog, lw, col);
-        drawHandles(ctx);
-        rafId = requestAnimationFrame(tick);
-      }
-      function drawHandles(ctx){
-        const r = 10*devicePixelRatio; ctx.lineWidth=2*devicePixelRatio;
-        for(const [k,p] of Object.entries(points)){
-          if(!p) continue; ctx.beginPath(); ctx.fillStyle=pointColor(k); ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-        }
-      }
-      cancelAnimationFrame(rafId); tick();
-      vid.onended = ()=> cancelAnimationFrame(rafId);
-    });
-
-    function drawTracer(ctx, p0, pc, p1, progress, lw, col){
-      ctx.save();
-      ctx.lineCap='round';
-      ctx.lineJoin='round';
-      ctx.lineWidth = lw*devicePixelRatio;
-      ctx.strokeStyle = hexToRGBA(col, 0.95);
-      ctx.beginPath();
-      const steps = 120;
-      const endStep = Math.floor(steps * (animateTracer.checked ? progress : 1));
-      for(let i=0;i<=endStep;i++){
-        const t = i/steps;
-        const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*pc.x + t*t*p1.x;
-        const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*pc.y + t*t*p1.y;
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
-      ctx.restore();
+    function clearPoints() {
+      points = [];
+      drawFrame();
     }
-
-    // Export: composite video + tracer to a canvas, record with MediaRecorder
-    exportBtn.addEventListener('click', async ()=>{
-      if(!vid.src || !points.start || !points.end){ alert('Set Start, Apex, and End points first.'); return; }
-      const startAt = clamp(parseFloat(tStart.value)||0, 0, vid.duration-0.01);
-      const dur = Math.max(0.05, parseFloat(tDur.value)||2.5);
-      const endAt = Math.min(startAt+dur, vid.duration);
-      const pc = points.ctrl || midpoint(points.start, points.end, -0.35);
-      const lw = parseInt(lineW.value,10);
-      const col = color.value;
-
-      // Build an offscreen canvas matching the displayed overlay (same resolution as visible canvas for speed)
-      const outW = overlay.width, outH = overlay.height;
-      const c = document.createElement('canvas');
-      c.width = outW; c.height = outH; const ctx = c.getContext('2d');
-
-      // A hidden video that plays at natural resolution, drawn into our canvas scaled to fit
-      const v = document.createElement('video');
-      v.src = vid.src; v.crossOrigin = 'anonymous'; v.muted = true; v.playsInline = true; await v.play();
-
-      // Fit: draw video to canvas preserving aspect, letterboxed
-      function drawVideoFrame(){
-        const vw = v.videoWidth, vh = v.videoHeight;
-        const cr = outW/outH, vr = vw/vh;
-        let dw, dh, dx, dy;
-        if(vr>cr){ dw = outW; dh = outW/vr; dx = 0; dy = (outH-dh)/2; }
-        else { dh = outH; dw = outH*vr; dy = 0; dx = (outW-dw)/2; }
-        ctx.drawImage(v, dx, dy, dw, dh);
-      }
-
-      const stream = c.captureStream();
-      const mime = MediaRecorder.isTypeSupported('video/mp4;codecs=h264') ? 'video/mp4;codecs=h264' : 'video/webm;codecs=vp9,opus';
-      const rec = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond: 6_000_000});
-      const chunks=[]; rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
-
-      const fps = 30; const frameDur = 1/fps; let raf; let lastT=0;
-
-      rec.onstop = ()=>{
-        const blob = new Blob(chunks, {type: mime});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `golf-traced.${mime.includes('mp4')?'mp4':'webm'}`; a.click();
-        URL.revokeObjectURL(url);
-      };
-
-      // Animation loop that composites video + tracer at ~30fps
-      function drawLoop(){
-        if(v.ended){ cancelAnimationFrame(raf); rec.stop(); return; }
-        const now = v.currentTime; // seconds
-        // throttle to ~30fps regardless of display refresh
-        if(now - lastT < frameDur*0.8){ raf = requestAnimationFrame(drawLoop); return; }
-        lastT = now;
-        ctx.clearRect(0,0,outW,outH);
-        drawVideoFrame();
-        // Map overlay points from on-screen overlay to our export canvas coordinates (same size so 1:1)
-        const prog = now<startAt? 0 : now>endAt? 1 : (now-startAt)/(endAt-startAt);
-        drawTracer(ctx, points.start, pc, points.end, prog, lw, col);
-        raf = requestAnimationFrame(drawLoop);
-      }
-
-      rec.start();
-      drawLoop();
-    });
-
-    function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-
-    // Initialize
-    resizeCanvas();
   </script>
 </body>
 </html>
+
